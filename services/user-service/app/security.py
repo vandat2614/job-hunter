@@ -22,3 +22,13 @@ def create_token(user_id: str) -> str:
 def decode_token(token: str) -> str:
     """Return the user id, or raise jwt.PyJWTError if the token is invalid or expired."""
     return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])["sub"]
+
+
+def extract_bearer(header: str | None) -> str | None:
+    """Return the token from an 'Authorization: Bearer <token>' header, or None."""
+    if not header:
+        return None
+    parts = header.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1].strip():
+        return parts[1].strip()
+    return None

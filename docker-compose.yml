@@ -1,4 +1,17 @@
 services:
+  traefik:
+    image: traefik:v3.6
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --api.insecure=true
+    ports:
+      - "80:80"
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   postgres:
     image: postgres:16
     environment:
@@ -36,17 +49,56 @@ services:
 
   job-service:
     build: ./services/job-service
-    ports:
-      - "8000:8000"
     depends_on:
       - postgres
       - kafka
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.job.loadbalancer.server.port=8000
+      - traefik.http.routers.jobs.rule=PathPrefix(`/jobs`)
+      - traefik.http.routers.jobs.middlewares=jwt-auth
+      - traefik.http.routers.jobs-docs.rule=PathPrefix(`/docs/jobs`)
 
   crawler:
     build: ./services/crawler
     depends_on:
       - kafka
 
+  user-service:
+    build: ./services/user-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/users
+      JWT_SECRET: change-me-in-real-deployments
+    depends_on:
+      - postgres
+      - kafka
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.user.loadbalancer.server.port=8000
+      # /auth/verify is intentionally NOT routed: it is only called by Traefik, internally
+      - traefik.http.routers.auth.rule=Path(`/auth/register`) || Path(`/auth/login`)
+      - traefik.http.routers.subs.rule=PathPrefix(`/subscriptions`)
+      - traefik.http.routers.subs.middlewares=jwt-auth
+      - traefik.http.routers.users-docs.rule=PathPrefix(`/docs/users`)
+      - traefik.http.middlewares.jwt-auth.forwardauth.address=http://user-service:8000/auth/verify
+      - traefik.http.middlewares.jwt-auth.forwardauth.authResponseHeaders=X-User-Id
+
+  matching-service:
+    build: ./services/matching-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/matching
+    depends_on:
+      - postgres
+      - kafka
+
+  notification-service:
+    build: ./services/notification-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/notifications
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    depends_on:
+      - postgres
+      - kafka
 
   prometheus:
     image: prom/prometheus:v2.54.1
@@ -69,34 +121,6 @@ services:
       - grafanadata:/var/lib/grafana
     depends_on:
       - prometheus
-
-  user-service:
-    build: ./services/user-service
-    ports:
-      - "8001:8000"
-    environment:
-      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/users
-      JWT_SECRET: change-me-in-real-deployments
-    depends_on:
-      - postgres
-      - kafka
-
-  matching-service:
-    build: ./services/matching-service
-    environment:
-      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/matching
-    depends_on:
-      - postgres
-      - kafka
-
-  notification-service:
-    build: ./services/notification-service
-    environment:
-      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/notifications
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-    depends_on:
-      - postgres
-      - kafka
 
 volumes:
   pgdata:

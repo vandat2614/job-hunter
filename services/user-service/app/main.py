@@ -17,7 +17,13 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="user-service", lifespan=lifespan)
+app = FastAPI(
+    title="user-service",
+    lifespan=lifespan,
+    docs_url="/docs/users",
+    openapi_url="/docs/users/openapi.json",
+    redoc_url=None,
+)
 app.include_router(auth_router)
 app.include_router(sub_router)
 

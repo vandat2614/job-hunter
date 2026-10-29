@@ -8,7 +8,7 @@ CHAT_ID="${1:-}"
 EMAIL="demo-$(date +%s)@example.com"
 PASSWORD="demo-password-123"
 JOB_ID="demo-$(date +%s)"
-USER_API="http://localhost:8001"
+USER_API="http://localhost"
 
 echo "1. Registering $EMAIL"
 curl -sf -X POST "$USER_API/auth/register" -H 'Content-Type: application/json' \

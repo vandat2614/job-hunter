@@ -20,7 +20,13 @@ async def lifespan(app: FastAPI):
         t.cancel()
 
 
-app = FastAPI(title="job-service", lifespan=lifespan)
+app = FastAPI(
+    title="job-service",
+    lifespan=lifespan,
+    docs_url="/docs/jobs",
+    openapi_url="/docs/jobs/openapi.json",
+    redoc_url=None,
+)
 app.include_router(router)
 app.mount("/metrics", make_asgi_app())
 

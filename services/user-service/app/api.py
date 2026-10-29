@@ -1,7 +1,7 @@
 import uuid
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 
@@ -9,7 +9,7 @@ from app.db import get_session
 from app.models import Subscription, User
 from app.outbox import add_event
 from app.schemas import Credentials, SubscriptionIn
-from app.security import create_token, decode_token, hash_password, verify_password
+from app.security import create_token, decode_token, extract_bearer, hash_password, verify_password
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 sub_router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
@@ -109,3 +109,21 @@ async def delete_subscription(sub_id: uuid.UUID, user=Depends(current_user), ses
     await session.delete(sub)
     add_event(session, str(sub_id), "subscription.deleted", {"subscription_id": str(sub_id)})
     await session.commit()
+
+
+@auth_router.get("/verify")
+async def verify(response: Response, authorization: str | None = Header(None)):
+    """Called by the API gateway (Traefik forwardAuth) before it forwards a request.
+
+    Stateless on purpose: it only checks the JWT, with no database lookup.
+    A deleted user's token therefore stays valid until it expires.
+    """
+    token = extract_bearer(authorization)
+    if not token:
+        raise HTTPException(401, "missing token")
+    try:
+        user_id = decode_token(token)
+    except jwt.PyJWTError:
+        raise HTTPException(401, "invalid token")
+    response.headers["X-User-Id"] = user_id
+    return {"user_id": user_id}
