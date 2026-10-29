@@ -70,6 +70,25 @@ services:
     depends_on:
       - prometheus
 
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/users
+      JWT_SECRET: change-me-in-real-deployments
+    depends_on:
+      - postgres
+      - kafka
+
+  matching-service:
+    build: ./services/matching-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/matching
+    depends_on:
+      - postgres
+      - kafka
+
 volumes:
   pgdata:
   grafanadata:

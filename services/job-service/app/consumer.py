@@ -54,7 +54,7 @@ async def upsert_job(session, msg: dict):
     await session.flush()
     session.add(JobSource(job_id=job.id, source=msg["source"],
                           source_job_id=msg["source_job_id"], url=msg["url"]))
-    add_created_event(session, job)
+    add_created_event(session, job, msg["url"])
     return job.id, "created"
 
 

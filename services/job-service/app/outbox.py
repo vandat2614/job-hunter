@@ -15,7 +15,7 @@ from app.metrics import EVENTS_PUBLISHED
 log = logging.getLogger("outbox")
 
 
-def add_created_event(session, job):
+def add_created_event(session, job, url):
     """Write the event to the outbox, in the same transaction as the job."""
     oid = uuid.uuid4()
     session.add(Outbox(
@@ -25,6 +25,7 @@ def add_created_event(session, job):
         payload={
             "event_id": str(oid),
             "job_id": str(job.id),
+            "url": url,
             "title": job.title,
             "company": job.company,
             "location": job.location,

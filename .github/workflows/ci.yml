@@ -8,16 +8,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [job-service, user-service, matching-service]
     defaults:
       run:
-        working-directory: services/job-service
+        working-directory: services/${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: services/job-service/requirements*.txt
+          cache-dependency-path: services/${{ matrix.service }}/requirements*.txt
       - run: pip install -r requirements-dev.txt
       - run: pytest -v
 
@@ -26,7 +29,7 @@ jobs:
     needs: test
     strategy:
       matrix:
-        service: [job-service, crawler]
+        service: [job-service, user-service, matching-service, crawler]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
