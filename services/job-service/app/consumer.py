@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from sqlalchemy import func, select
 
 from app.config import settings
@@ -57,6 +57,53 @@ async def upsert_job(session, msg: dict):
     return job.id, "created"
 
 
+MAX_RETRIES = 3
+DLQ_TOPIC = "job.raw.dlq"
+# Lỗi do dữ liệu: retry không giúp ích gì
+NON_RETRYABLE = (ValueError, KeyError, TypeError)  # JSONDecodeError là con của ValueError
+
+
+async def process(raw: bytes):
+    msg = json.loads(raw)
+    async with SessionLocal() as session:
+        async with session.begin():
+            return await upsert_job(session, msg)
+
+
+async def send_to_dlq(dlq: AIOKafkaProducer, record, error: Exception):
+    headers = [
+        ("error", f"{type(error).__name__}: {error}".encode()[:500]),
+        ("source_topic", record.topic.encode()),
+        ("source_partition", str(record.partition).encode()),
+        ("source_offset", str(record.offset).encode()),
+    ]
+    while True:  # không bỏ cuộc: chưa vào được DLQ thì chưa commit
+        try:
+            await dlq.send_and_wait(DLQ_TOPIC, value=record.value, key=record.key, headers=headers)
+            return
+        except Exception:
+            log.exception("cannot send to DLQ, retrying")
+            await asyncio.sleep(3)
+
+
+async def handle(record, dlq: AIOKafkaProducer):
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            job_id, result = await process(record.value)
+            log.info("offset=%s %s job=%s", record.offset, result, job_id)
+            return
+        except NON_RETRYABLE as e:
+            last_error = e
+            break
+        except Exception as e:
+            last_error = e
+            log.warning("offset=%s attempt %d/%d failed: %s", record.offset, attempt, MAX_RETRIES, e)
+            await asyncio.sleep(2 ** attempt)
+    log.error("offset=%s -> DLQ: %s", record.offset, last_error)
+    await send_to_dlq(dlq, record, last_error)
+
+
 async def run_consumer():
     consumer = AIOKafkaConsumer(
         "job.raw",
@@ -64,11 +111,13 @@ async def run_consumer():
         group_id="job-service",
         enable_auto_commit=False,
         auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode()),
     )
+    dlq = AIOKafkaProducer(bootstrap_servers=settings.kafka_bootstrap)
+
     for _ in range(30):  # chờ Kafka sẵn sàng
         try:
             await consumer.start()
+            await dlq.start()
             break
         except Exception:
             await asyncio.sleep(2)
@@ -79,13 +128,8 @@ async def run_consumer():
     log.info("consumer started")
     try:
         async for record in consumer:
-            try:
-                async with SessionLocal() as session:
-                    async with session.begin():
-                        job_id, result = await upsert_job(session, record.value)
-                log.info("offset=%s %s job=%s", record.offset, result, job_id)
-            except Exception:
-                log.exception("failed offset=%s", record.offset)
+            await handle(record, dlq)
             await consumer.commit()
     finally:
         await consumer.stop()
+        await dlq.stop()
