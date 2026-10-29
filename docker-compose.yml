@@ -89,6 +89,15 @@ services:
       - postgres
       - kafka
 
+  notification-service:
+    build: ./services/notification-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/notifications
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    depends_on:
+      - postgres
+      - kafka
+
 volumes:
   pgdata:
   grafanadata:
