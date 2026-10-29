@@ -2,35 +2,41 @@
 
 ![CI](https://github.com/ten-cua-ban/job-hunter/actions/workflows/ci.yml/badge.svg)
 
-An event-driven microservice system that collects job postings, normalizes and deduplicates them, matches them against user subscriptions and delivers notifications over Telegram. Built with Python, FastAPI, Kafka and PostgreSQL.
+An event-driven microservice system that collects job postings, normalizes and deduplicates them, matches them against user subscriptions and delivers notifications over Telegram. Built with Python, FastAPI, Kafka, PostgreSQL and Traefik.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
+    Client -->|HTTP :80| TR[Traefik gateway]
+    TR -->|/auth/register, /auth/login| U[user-service]
+    TR -->|/subscriptions + JWT| U
+    TR -->|/jobs + JWT| J[job-service]
+    TR -.->|forwardAuth: /auth/verify| U
+
     S[APScheduler] --> C[crawler]
     C -->|job.raw| K[(Kafka)]
-    K -->|job.raw| J[job-service]
+    K -->|job.raw| J
     J -->|job.created via outbox| K
-    U[user-service] -->|subscription.events via outbox| K
+    U -->|subscription.events via outbox| K
     K -->|job.created + subscription.events| M[matching-service]
     M -->|job.matched via outbox| K
     K -->|job.matched| N[notification-service]
     N --> T[Telegram]
+
     J --- PJ[(jobs db)]
     U --- PU[(users db)]
     M --- PM[(matching db)]
     N --- PN[(notifications db)]
-    Client -->|REST| J
-    Client -->|REST + JWT| U
     J -.->|metrics| PR[Prometheus] --> G[Grafana]
 ```
 
-| Service | Responsibility | Owns |
+| Component | Responsibility | Owns |
 |---|---|---|
+| traefik | Single entry point, routing, JWT check via forwardAuth | - |
 | crawler | Fetches postings on a schedule and publishes them, almost unmodified, to `job.raw` | - |
 | job-service | Normalizes salary and skills, deduplicates across sources, serves the search API, publishes `job.created` | `jobs` database |
-| user-service | Registration, login (JWT), job-search subscriptions; publishes subscription events | `users` database |
+| user-service | Registration, login (JWT), job-search subscriptions, token verification for the gateway; publishes subscription events | `users` database |
 | matching-service | Keeps a local copy of subscriptions, matches each new job against them, publishes `job.matched` | `matching` database |
 | notification-service | Delivers matches to Telegram, drops duplicate deliveries | `notifications` database |
 
@@ -49,6 +55,7 @@ Each service owns its database. Services never read each other's data; they only
 ## Key engineering points
 
 - **Event-driven with Kafka (KRaft):** services are decoupled; `job.raw` can be replayed to reprocess data after changing normalization logic.
+- **API gateway:** Traefik is the only public entry point. Routes are Docker labels; protected routes call user-service (`forwardAuth`) so JWT validation lives in one place and internal service ports are not published.
 - **Transactional Outbox** in job-service, user-service and matching-service: a state change and its event are written in one transaction, so events are not lost when Kafka is unavailable (at-least-once delivery).
 - **Event-carried state:** matching-service keeps its own copy of subscriptions, built from `subscription.events`, so it never calls user-service at runtime.
 - **Idempotent consumers:** duplicates are dropped by a `(job_id, subscription_id)` primary key in matching-service and by `event_id` in notification-service.
@@ -86,18 +93,36 @@ then `docker compose up -d notification-service`. Never commit `.env`.
 
 | Component | URL |
 |---|---|
-| job-service API + Swagger UI | http://localhost:8000/docs |
-| user-service API + Swagger UI | http://localhost:8001/docs |
+| API gateway (all API calls) | http://localhost |
+| job-service Swagger UI | http://localhost/docs/jobs |
+| user-service Swagger UI | http://localhost/docs/users |
+| Traefik dashboard (dev only, unauthenticated) | http://localhost:8081 |
 | Kafka UI | http://localhost:8080 |
 | Prometheus | http://localhost:9090 |
 | Grafana (admin / admin) | http://localhost:3000 |
 
-Example search calls:
+## Using the API
+
+Every call goes through the gateway on port 80. `/jobs` and `/subscriptions` require a JWT.
 
 ```bash
-curl "localhost:8000/jobs?q=python&skills=docker&limit=5"
-curl "localhost:8000/jobs?min_salary=100000&currency=USD"
+# register and log in
+curl -X POST localhost/auth/register -H 'Content-Type: application/json' \
+  -d '{"email":"me@example.com","password":"secret123"}'
+TOKEN=$(curl -s -X POST localhost/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"me@example.com","password":"secret123"}' \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+
+# search jobs
+curl -H "Authorization: Bearer $TOKEN" "localhost/jobs?q=python&skills=docker&limit=5"
+curl -H "Authorization: Bearer $TOKEN" "localhost/jobs?min_salary=100000&currency=USD"
+
+# subscribe to matching jobs
+curl -X POST localhost/subscriptions -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"skills":["python","kafka"],"location":"remote","min_salary":1000,"currency":"usd","telegram_chat_id":"<chat id>"}'
 ```
+
+Requests without a valid token get `401` from the gateway and never reach the service. The service ports (8000, 8001) are not published; `/metrics`, `/health` and `/auth/verify` are only reachable inside the Docker network.
 
 ## Tests
 
@@ -112,9 +137,14 @@ Replace `job-service` (twice) with `user-service`, `matching-service` or `notifi
 
 - [ADR-0001: Kafka over RabbitMQ](docs/adr/0001-kafka-over-rabbitmq.md)
 - [ADR-0002: Transactional Outbox](docs/adr/0002-transactional-outbox.md)
+- [ADR-0003: Traefik as API gateway with forwardAuth](docs/adr/0003-traefik-gateway-with-forward-auth.md)
 
-## Known limitations and roadmap
+## Security notes and known limitations
 
+- `/auth/verify` only checks the JWT signature and expiry, so a token stays valid until it expires even if the user is deleted.
+- Internal services trust the gateway: they are safe only because their ports are not published.
+- Traefik reads the Docker socket (read-only) and its dashboard runs with `api.insecure`; both are development shortcuts. There is no TLS yet.
+- Secrets in `docker-compose.yml` (database password, JWT secret) are development defaults.
 - Only one data source (RemoteOK). A new source is a single new file in `services/crawler/app/sources/`.
 - The outbox code is duplicated across three services; it would normally be extracted into a shared library.
 - matching-service scans all active subscriptions for every job; it would need an index by skill at larger scale.
@@ -122,5 +152,4 @@ Replace `job-service` (twice) with `user-service`, `matching-service` or `notifi
 - Full-text search uses the `simple` configuration, so Vietnamese text is only partially supported.
 - A wrong Telegram token sends every notification to the DLQ instead of stopping the consumer.
 - No replay tooling for the dead-letter topics yet.
-- No API gateway: clients call each service directly.
-- Planned: Kubernetes deployment, an API gateway, semantic matching between a CV and a job.
+- Planned: score-based matching, CV-to-job matching, rate limiting at the gateway.
