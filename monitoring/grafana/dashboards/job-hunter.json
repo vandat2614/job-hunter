@@ -1,0 +1,52 @@
+{
+  "title": "Job Hunter",
+  "uid": "job-hunter",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Messages / phút theo kết quả",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (result) (rate(jobhunter_messages_total[5m])) * 60", "legendFormat": "{{result}}" }
+      ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Tổng job mới tạo",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(jobhunter_messages_total{result=\"created\"})" }
+      ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Tổng message lỗi (DLQ)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(jobhunter_messages_total{result=\"dlq\"})" }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Thời gian xử lý p95 (giây)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(jobhunter_process_seconds_bucket[5m])))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Event outbox đã gửi / phút",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (topic) (rate(jobhunter_outbox_published_total[5m])) * 60", "legendFormat": "{{topic}}" }
+      ]
+    }
+  ]
+}
