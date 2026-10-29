@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from app.config import settings
 from app.db import SessionLocal
 from app.models import Outbox
+from app.metrics import EVENTS_PUBLISHED
 
 log = logging.getLogger("outbox")
 
@@ -70,6 +71,7 @@ async def run_publisher():
                             await producer.send_and_wait(r.topic, value=r.payload, key=r.key)
                             r.published_at = func.now()
                             log.info("published %s -> %s", r.id, r.topic)
+                            EVENTS_PUBLISHED.labels(r.topic).inc()
             except Exception:
                 log.exception("publisher error")
                 await asyncio.sleep(3)

@@ -10,6 +10,7 @@ from app.db import SessionLocal
 from app.models import Job, JobSource
 from app.normalize import extract_skills, make_dedup_key, parse_salary
 from app.outbox import add_created_event
+from app.metrics import MESSAGES, PROCESS_SECONDS
 
 log = logging.getLogger("consumer")
 
@@ -90,7 +91,9 @@ async def handle(record, dlq: AIOKafkaProducer):
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            job_id, result = await process(record.value)
+            with PROCESS_SECONDS.time():
+                job_id, result = await process(record.value)
+            MESSAGES.labels(result).inc()
             log.info("offset=%s %s job=%s", record.offset, result, job_id)
             return
         except NON_RETRYABLE as e:
@@ -101,6 +104,7 @@ async def handle(record, dlq: AIOKafkaProducer):
             log.warning("offset=%s attempt %d/%d failed: %s", record.offset, attempt, MAX_RETRIES, e)
             await asyncio.sleep(2 ** attempt)
     log.error("offset=%s -> DLQ: %s", record.offset, last_error)
+    MESSAGES.labels("dlq").inc()
     await send_to_dlq(dlq, record, last_error)
 
 
