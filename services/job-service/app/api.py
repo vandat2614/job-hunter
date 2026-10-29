@@ -26,11 +26,11 @@ def _to_dict(j: Job) -> dict:
 
 @router.get("")
 async def search_jobs(
-    q: str | None = Query(None, description="Từ khóa full-text"),
-    skills: list[str] = Query(default=[], description="Phải có TẤT CẢ skill này"),
+    q: str | None = Query(None, description="Full-text search keywords"),
+    skills: list[str] = Query(default=[], description="Job must have ALL of these skills"),
     location: str | None = None,
-    min_salary: int | None = Query(None, description="Lương tối đa của job >= giá trị này"),
-    currency: str | None = Query(None, description="VND hoặc USD"),
+    min_salary: int | None = Query(None, description="Job maximum salary must be >= this value"),
+    currency: str | None = Query(None, description="VND or USD"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     session=Depends(get_session),

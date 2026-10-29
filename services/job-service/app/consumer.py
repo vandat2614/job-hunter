@@ -18,7 +18,7 @@ log = logging.getLogger("consumer")
 async def upsert_job(session, msg: dict):
     p = msg["payload"]
 
-    # 1. Đã thấy đúng (source, source_job_id) này rồi -> chỉ cập nhật last_seen
+    # 1. Same (source, source_job_id) already seen -> only refresh last_seen_at
     src = await session.scalar(
         select(JobSource).where(
             JobSource.source == msg["source"],
@@ -30,7 +30,7 @@ async def upsert_job(session, msg: dict):
         job.last_seen_at = func.now()
         return job.id, "seen_again"
 
-    # 2. Cùng job nhưng từ nguồn khác -> gắn thêm source vào job cũ
+    # 2. Same job from another source -> attach the new source to the existing job
     key = make_dedup_key(p["company"], p["title"], p.get("location"))
     job = await session.scalar(select(Job).where(Job.dedup_key == key))
     if job:
@@ -39,7 +39,7 @@ async def upsert_job(session, msg: dict):
                               source_job_id=msg["source_job_id"], url=msg["url"]))
         return job.id, "new_source"
 
-    # 3. Job mới hoàn toàn
+    # 3. Brand new job
     smin, smax, cur = parse_salary(p.get("salary_text"))
     job = Job(
         dedup_key=key,
@@ -60,7 +60,7 @@ async def upsert_job(session, msg: dict):
 
 MAX_RETRIES = 3
 DLQ_TOPIC = "job.raw.dlq"
-# Lỗi do dữ liệu: retry không giúp ích gì
+# Data errors: retrying will not help
 NON_RETRYABLE = (ValueError, KeyError, TypeError)  # JSONDecodeError là con của ValueError
 
 
@@ -78,7 +78,7 @@ async def send_to_dlq(dlq: AIOKafkaProducer, record, error: Exception):
         ("source_partition", str(record.partition).encode()),
         ("source_offset", str(record.offset).encode()),
     ]
-    while True:  # không bỏ cuộc: chưa vào được DLQ thì chưa commit
+    while True:  # never give up: do not commit the offset until the message is in the DLQ
         try:
             await dlq.send_and_wait(DLQ_TOPIC, value=record.value, key=record.key, headers=headers)
             return
@@ -118,7 +118,7 @@ async def run_consumer():
     )
     dlq = AIOKafkaProducer(bootstrap_servers=settings.kafka_bootstrap)
 
-    for _ in range(30):  # chờ Kafka sẵn sàng
+    for _ in range(30):  # wait for Kafka to be ready
         try:
             await consumer.start()
             await dlq.start()

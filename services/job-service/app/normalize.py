@@ -28,7 +28,7 @@ def make_dedup_key(company: str, title: str, location: str | None) -> str:
 
 
 def parse_salary(text: str | None):
-    """Trả về (min, max, currency). Không parse được -> (None, None, None)."""
+    """Return (min, max, currency), or (None, None, None) if unparseable."""
     if not text:
         return None, None, None
     t = strip_accents(text).lower().replace(",", "")

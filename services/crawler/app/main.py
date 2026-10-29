@@ -44,14 +44,14 @@ async def main():
     else:
         raise SystemExit("cannot connect to kafka")
 
-    await crawl_once(producer)  # chạy ngay một lần khi khởi động
+    await crawl_once(producer)  # run once immediately on startup
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(crawl_once, "interval", minutes=settings.crawl_interval_minutes, args=[producer])
     scheduler.start()
     log.info("scheduler started, every %d min", settings.crawl_interval_minutes)
 
-    await asyncio.Event().wait()  # giữ process sống
+    await asyncio.Event().wait()  # keep the process alive
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
   "time": { "from": "now-30m", "to": "now" },
   "panels": [
     {
-      "id": 1, "type": "timeseries", "title": "Messages / phút theo kết quả",
+      "id": 1, "type": "timeseries", "title": "Messages per minute by result",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "id": 2, "type": "stat", "title": "Tổng job mới tạo",
+      "id": 2, "type": "stat", "title": "Total jobs created",
       "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": 3, "type": "stat", "title": "Tổng message lỗi (DLQ)",
+      "id": 3, "type": "stat", "title": "Total failed messages (DLQ)",
       "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -33,7 +33,7 @@
         { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } }
     },
     {
-      "id": 4, "type": "timeseries", "title": "Thời gian xử lý p95 (giây)",
+      "id": 4, "type": "timeseries", "title": "Processing time p95 (seconds)",
       "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -41,7 +41,7 @@
       ]
     },
     {
-      "id": 5, "type": "timeseries", "title": "Event outbox đã gửi / phút",
+      "id": 5, "type": "timeseries", "title": "Outbox events published per minute",
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [

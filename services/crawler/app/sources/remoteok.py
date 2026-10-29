@@ -35,6 +35,6 @@ async def fetch() -> list[dict]:
         resp = await client.get(URL)
         resp.raise_for_status()
     data = resp.json()
-    # Phần tử đầu tiên là thông báo pháp lý, không phải job
+    # The first element is a legal notice, not a job
     items = [d for d in data if isinstance(d, dict) and d.get("id") and d.get("position")]
     return [_to_message(i) for i in items]

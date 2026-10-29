@@ -16,7 +16,7 @@ log = logging.getLogger("outbox")
 
 
 def add_created_event(session, job):
-    """Ghi event vào outbox, chung transaction với job."""
+    """Write the event to the outbox, in the same transaction as the job."""
     oid = uuid.uuid4()
     session.add(Outbox(
         id=oid,

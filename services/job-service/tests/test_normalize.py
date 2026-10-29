@@ -48,7 +48,7 @@ def test_extract_skills_basic():
 
 
 def test_extract_skills_no_partial_match():
-    # "java" không được khớp trong "javascript", "sql" không khớp trong "postgresql"
+    # "java" must not match inside "javascript", "sql" must not match inside "postgresql"
     assert extract_skills("JavaScript developer") == ["javascript"]
     assert extract_skills("PostgreSQL") == ["postgresql"]
 
