@@ -116,6 +116,7 @@ then `docker compose up -d notification-service`. Never commit `.env`.
 
 | Component | URL |
 |---|---|
+| Web demo | http://localhost/ |
 | API gateway (all API calls) | http://localhost |
 | job-service Swagger UI | http://localhost/docs/jobs |
 | user-service Swagger UI | http://localhost/docs/users |
@@ -183,6 +184,7 @@ Replace `job-service` (twice) with another service name to test it. Scoring test
 - The skill list is duplicated in job-service and scoring-service and can drift; the outbox code is duplicated across five services. Both would normally become a shared library.
 - LLM scoring is slow on CPU and processes one match at a time, so notifications can be delayed when many jobs match at once.
 - Scanned (image-only) PDFs are rejected; there is no OCR.
+- The web demo keeps the JWT in sessionStorage and is served over plain HTTP; it is a demo UI, not a hardened client.
 - Only one data source (RemoteOK). A new source is a single new file in `services/crawler/app/sources/`.
 - matching-service scans all active subscriptions for every job, and jobs are not re-matched against a subscription created later.
 - Full-text search uses the `simple` configuration, so Vietnamese text is only partially supported.

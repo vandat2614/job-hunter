@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Hunter</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Job Hunter</h1>
+    <div id="session" hidden>
+      <span id="who"></span>
+      <button id="logout" type="button" class="secondary">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <p id="status" role="status" aria-live="polite"></p>
+
+    <section id="auth-view" class="welcome">
+      <div>
+        <h2>Know how well a job fits before you read it.</h2>
+        <p class="lead">Upload your CV and save a search. New matching jobs reach you on Telegram with a fit score and the skills you are missing.</p>
+        <article class="sample" aria-label="Example notification">
+          <p class="hint">Example notification</p>
+          <div class="sample-body">
+            <div class="ring" style="--score:78"><b>78</b></div>
+            <div>
+              <h3>Senior Python Engineer</h3>
+              <p class="meta"><span>Demo Co</span><span>Remote</span><span>3,000 - 4,000 USD</span></p>
+            </div>
+          </div>
+          <dl>
+            <dt>You have:</dt><dd>python, kafka, docker</dd>
+            <dt>Missing:</dt><dd>aws</dd>
+          </dl>
+        </article>
+      </div>
+      <div class="signin">
+        <h3>Log in or create an account</h3>
+        <form id="auth-form">
+          <label>Email
+            <input id="email" type="email" required autocomplete="username">
+          </label>
+          <label>Password (8 to 72 characters)
+            <input id="password" type="password" minlength="8" maxlength="72" required autocomplete="current-password">
+          </label>
+          <div class="row">
+            <button type="submit">Log in</button>
+            <button id="register" type="button" class="secondary">Create account</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <div id="app-view" hidden>
+      <nav role="tablist">
+        <button type="button" role="tab" data-tab="jobs" aria-selected="true">Jobs</button>
+        <button type="button" role="tab" data-tab="cv" aria-selected="false">My CV</button>
+        <button type="button" role="tab" data-tab="subs" aria-selected="false">Subscriptions</button>
+      </nav>
+
+      <section id="tab-jobs" class="tab">
+        <form id="jobs-form" class="grid">
+          <label>Keywords <input id="q" placeholder="python backend"></label>
+          <label>Skills (comma separated, all required) <input id="skills" placeholder="python, kafka"></label>
+          <label>Location <input id="location" placeholder="remote"></label>
+          <label>Min salary <input id="min-salary" type="number" min="0"></label>
+          <label>Currency
+            <select id="currency">
+              <option value="">Any</option>
+              <option value="USD">USD</option>
+              <option value="VND">VND</option>
+            </select>
+          </label>
+          <div class="row end"><button type="submit">Search</button></div>
+        </form>
+        <p id="jobs-summary" class="hint"></p>
+        <div id="jobs-list"></div>
+        <div class="row">
+          <button id="prev" type="button" class="secondary">Previous</button>
+          <button id="next" type="button" class="secondary">Next</button>
+        </div>
+      </section>
+
+      <section id="tab-cv" class="tab" hidden>
+        <p class="hint">PDF, DOCX or TXT, up to 2 MB. Uploading again replaces the previous CV. Only the extracted text is stored; emails, phone numbers and URLs are masked, names are not.</p>
+        <div id="cv-current"></div>
+        <form id="cv-form" class="row">
+          <input id="cv-file" type="file" accept=".pdf,.docx,.txt" required>
+          <button type="submit">Upload</button>
+          <button id="cv-delete" type="button" class="danger" hidden>Delete CV</button>
+        </form>
+      </section>
+
+      <section id="tab-subs" class="tab" hidden>
+        <p class="hint">A subscription is a saved search. Every new job that matches all of its criteria is scored against your CV and sent to your Telegram chat.</p>
+        <form id="subs-form" class="grid">
+          <label>Skills (comma separated, all required) <input id="sub-skills" placeholder="python, kafka"></label>
+          <label>Location <input id="sub-location" placeholder="remote"></label>
+          <label>Min salary <input id="sub-min-salary" type="number" min="0"></label>
+          <label>Currency
+            <select id="sub-currency">
+              <option value="">Any</option>
+              <option value="USD">USD</option>
+              <option value="VND">VND</option>
+            </select>
+          </label>
+          <label>Telegram chat id <input id="sub-chat" inputmode="numeric" placeholder="123456789"></label>
+          <div class="row end"><button type="submit">Create subscription</button></div>
+        </form>
+        <div id="subs-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
