@@ -83,6 +83,21 @@ services:
       - traefik.http.middlewares.jwt-auth.forwardauth.address=http://user-service:8000/auth/verify
       - traefik.http.middlewares.jwt-auth.forwardauth.authResponseHeaders=X-User-Id
 
+  cv-service:
+    build: ./services/cv-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/cvs
+    depends_on:
+      - postgres
+      - kafka
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.cv.loadbalancer.server.port=8000
+      - traefik.http.routers.cvs.rule=PathPrefix(`/cvs`)
+      - traefik.http.routers.cvs.middlewares=jwt-auth,cv-limit
+      - traefik.http.middlewares.cv-limit.buffering.maxRequestBodyBytes=3145728
+      - traefik.http.routers.cvs-docs.rule=PathPrefix(`/docs/cvs`)
+
   matching-service:
     build: ./services/matching-service
     environment:
@@ -99,6 +114,12 @@ services:
     depends_on:
       - postgres
       - kafka
+
+  ollama:
+    image: ollama/ollama:latest
+    cpus: 1.5
+    volumes:
+      - ollamadata:/root/.ollama
 
   prometheus:
     image: prom/prometheus:v2.54.1
@@ -125,3 +146,4 @@ services:
 volumes:
   pgdata:
   grafanadata:
+  ollamadata:

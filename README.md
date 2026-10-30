@@ -72,8 +72,10 @@ Requirements: Docker and Docker Compose.
 ```bash
 git clone git@github.com:ten-cua-ban/job-hunter.git
 cd job-hunter
-docker compose up -d --build
+docker compose up -d postgres kafka
+scripts/init-databases.sh
 scripts/init-topics.sh
+docker compose up -d --build
 ```
 
 Run the end-to-end demo (without a chat id, notifications are only logged):
