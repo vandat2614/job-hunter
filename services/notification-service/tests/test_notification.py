@@ -54,3 +54,23 @@ def test_classify_temporary(status):
 @pytest.mark.parametrize("status", [400, 401, 403, 404])
 def test_classify_permanent(status):
     assert isinstance(classify_response(status, {"description": "chat not found"}), PermanentError)
+
+
+def test_format_message_with_score():
+    text = format_message({
+        "title": "Dev", "company": "Acme", "score": 59, "basis": "skills_and_experience",
+        "matched_skills": ["python"], "missing_skills": ["aws"], "note": "Slightly junior.",
+    })
+    assert "Fit score: 59/100" in text
+    assert "You have: python" in text and "Missing: aws" in text
+    assert "Slightly junior." in text
+
+
+def test_format_message_score_basis_label():
+    text = format_message({"title": "Dev", "company": "Acme", "score": 50, "basis": "skills_only"})
+    assert "Fit score: 50/100 (skills only)" in text
+
+
+def test_format_message_without_score():
+    text = format_message({"title": "Dev", "company": "Acme", "score": None, "basis": "no_cv"})
+    assert "Fit score" not in text

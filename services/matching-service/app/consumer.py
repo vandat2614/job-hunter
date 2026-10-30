@@ -75,6 +75,8 @@ async def match_job(session, job: dict):
             "salary_max": job.get("salary_max"),
             "salary_currency": job.get("salary_currency"),
             "url": job.get("url"),
+            "skills": job.get("skills") or [],
+            "description": job.get("description"),
         })
         matched += 1
     return f"job_matched={matched}/{len(subs)}"

@@ -9,7 +9,7 @@ for _ in $(seq 1 30); do
 done
 
 PSQL="docker compose exec -T postgres psql -U jobhunter -d postgres -tA"
-for db in users matching notifications cvs; do
+for db in users matching notifications cvs scoring; do
   if [ "$($PSQL -c "select 1 from pg_database where datname='$db'")" != "1" ]; then
     $PSQL -c "create database $db" > /dev/null
     echo "created database $db"

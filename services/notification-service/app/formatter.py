@@ -1,3 +1,6 @@
+BASIS_LABELS = {"skills_only": "skills only", "experience_only": "experience only"}
+
+
 def format_salary(smin: int | None, smax: int | None, currency: str | None) -> str | None:
     if smin is None and smax is None:
         return None
@@ -19,6 +22,18 @@ def format_message(event: dict) -> str:
     salary = format_salary(event.get("salary_min"), event.get("salary_max"), event.get("salary_currency"))
     if salary:
         lines.append(f"Salary: {salary}")
+
+    score = event.get("score")
+    if score is not None:
+        label = BASIS_LABELS.get(event.get("basis"))
+        lines.append(f"Fit score: {score}/100" + (f" ({label})" if label else ""))
+        if event.get("matched_skills"):
+            lines.append("You have: " + ", ".join(event["matched_skills"][:8]))
+        if event.get("missing_skills"):
+            lines.append("Missing: " + ", ".join(event["missing_skills"][:8]))
+        if event.get("note"):
+            lines.append(event["note"])
+
     if event.get("url"):
         lines += ["", event["url"]]
     return "\n".join(lines)

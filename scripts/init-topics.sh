@@ -16,9 +16,11 @@ create() {
 create job.raw 3
 create job.created 3
 create job.matched 3
+create job.scored 3
 create subscription.events 3
 create cv.events 3
 create job.raw.dlq 1
 create matching.dlq 1
 create notification.dlq 1
+create scoring.dlq 1
 echo "Topics ready."

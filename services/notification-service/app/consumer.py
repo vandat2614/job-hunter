@@ -76,7 +76,7 @@ async def handle(record, dlq: AIOKafkaProducer):
 
 async def run_consumer():
     consumer = AIOKafkaConsumer(
-        "job.matched",
+        "job.scored",
         bootstrap_servers=settings.kafka_bootstrap,
         group_id="notification-service",
         enable_auto_commit=False,

@@ -106,6 +106,16 @@ services:
       - postgres
       - kafka
 
+  scoring-service:
+    build: ./services/scoring-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/scoring
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      - postgres
+      - kafka
+      - ollama
+
   notification-service:
     build: ./services/notification-service
     environment:

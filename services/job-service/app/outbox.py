@@ -26,6 +26,7 @@ def add_created_event(session, job, url):
             "event_id": str(oid),
             "job_id": str(job.id),
             "url": url,
+            "description": (job.description or "")[:4000],
             "title": job.title,
             "company": job.company,
             "location": job.location,
