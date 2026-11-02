@@ -3,8 +3,10 @@ import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile
 
+from app.config import settings
 from app.db import get_session
 from app.extract import EmptyDocument, UnsupportedFormat, process_cv
+from app.mock_cv import MOCK_CV_TEXT
 from app.models import CV
 from app.outbox import add_event
 
@@ -31,6 +33,7 @@ def _summary(cv: CV) -> dict:
         "chars": cv.char_count,
         "updated_at": cv.updated_at,
         "preview": cv.text[:300],
+        "demo": settings.cv_extraction == "mock",
     }
 
 
@@ -43,12 +46,16 @@ async def upload_cv(
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "file too large (max 2 MB)")
-    try:
-        fmt, text = process_cv(data)
-    except UnsupportedFormat as e:
-        raise HTTPException(415, str(e))
-    except EmptyDocument as e:
-        raise HTTPException(422, str(e))
+    if settings.cv_extraction == "mock":
+        # Extraction is frozen: the uploaded file is ignored so downstream services keep working
+        fmt, text = "txt", MOCK_CV_TEXT
+    else:
+        try:
+            fmt, text = process_cv(data)
+        except UnsupportedFormat as e:
+            raise HTTPException(415, str(e))
+        except EmptyDocument as e:
+            raise HTTPException(422, str(e))
 
     cv = await session.get(CV, user_id)
     if cv is None:

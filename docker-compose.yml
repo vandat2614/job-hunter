@@ -87,6 +87,7 @@ services:
     build: ./services/cv-service
     environment:
       DATABASE_URL: postgresql+asyncpg://jobhunter:jobhunter@postgres:5432/cvs
+      CV_EXTRACTION: mock
     depends_on:
       - postgres
       - kafka

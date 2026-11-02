@@ -6,4 +6,6 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "kafka:9092"
 
 
+
+    cv_extraction: str = "real"  # "mock" freezes extraction: every upload stores MOCK_CV_TEXT
 settings = Settings()

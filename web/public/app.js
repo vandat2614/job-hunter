@@ -143,11 +143,21 @@ async function selectTab(name) {
 
 /* ---------- jobs ---------- */
 
+let wanted = [];
+
+function ago(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+
 async function searchJobs(offset) {
   const p = new URLSearchParams();
   const q = $("q").value.trim();
   if (q) p.set("q", q);
-  for (const s of splitList($("skills").value)) p.append("skills", s);
+  wanted = splitList($("skills").value);
+  for (const s of wanted) p.append("skills", s);
   const location = $("location").value.trim();
   if (location) p.set("location", location);
   if ($("min-salary").value) p.set("min_salary", $("min-salary").value);
@@ -159,21 +169,47 @@ async function searchJobs(offset) {
   renderJobs(data);
 }
 
-function jobCard(j) {
-  const parts = [j.company, j.location, formatSalary(j.salary_min, j.salary_max, j.salary_currency)].filter(Boolean);
-  const card = el("article", { cls: "card" }, el("h3", { text: j.title }), el("p", { cls: "meta" }, ...parts.map((x) => el("span", { text: x }))));
-  if (j.skills.length) card.append(el("p", {}, ...j.skills.map((s) => el("span", { cls: "chip", text: s }))));
+function jobRow(j) {
+  const sub = [j.company, j.location].filter(Boolean).join(", ");
+  const btn = el(
+    "button",
+    { cls: "job", attrs: { type: "button", "aria-pressed": "false" } },
+    el("span", { cls: "job-main" }, el("strong", { text: j.title }), el("span", { cls: "job-sub", text: sub })),
+    el(
+      "span",
+      { cls: "job-side" },
+      el("span", { cls: "salary", text: formatSalary(j.salary_min, j.salary_max, j.salary_currency) || "No salary listed" }),
+      el("span", { cls: "job-sub", text: ago(j.first_seen_at) }),
+    ),
+  );
+  btn.addEventListener("click", () => guard(() => showJob(j.id, btn)));
+  return btn;
+}
+
+async function showJob(id, btn) {
+  for (const b of document.querySelectorAll(".job")) b.setAttribute("aria-pressed", String(b === btn));
+  const j = await api(`/jobs/${encodeURIComponent(id)}`);
+  const facts = [j.company, j.location, formatSalary(j.salary_min, j.salary_max, j.salary_currency)].filter(Boolean);
   const links = j.sources
     .map((s) => ({ name: s.source, href: safeUrl(s.url) }))
     .filter((x) => x.href)
-    .map((x) => el("a", { text: x.name, attrs: { href: x.href, target: "_blank", rel: "noopener noreferrer" } }));
-  if (links.length) card.append(el("p", { cls: "links" }, ...links));
-  return card;
+    .map((x) => el("a", { text: `Open on ${x.name}`, attrs: { href: x.href, target: "_blank", rel: "noopener noreferrer" } }));
+  $("job-detail").replaceChildren(
+    el("h3", { text: j.title }),
+    el("p", { cls: "meta" }, ...facts.map((x) => el("span", { text: x }))),
+    el("p", {}, ...j.skills.map((s) => el("span", { cls: wanted.includes(s) ? "chip hit" : "chip", text: s }))),
+    el("p", { cls: "links" }, ...links),
+    el("p", { cls: "desc", text: j.description || "This posting has no description." }),
+  );
+  $("job-detail").scrollIntoView({ block: "nearest" });
 }
 
 function renderJobs({ total, items, limit, offset }) {
-  $("jobs-summary").textContent = `${total} job${total === 1 ? "" : "s"} found`;
-  $("jobs-list").replaceChildren(...items.map(jobCard));
+  $("jobs-summary").textContent = total
+    ? `${offset + 1} to ${offset + items.length} of ${total}, newest first`
+    : "No jobs match these filters. Remove a skill or the salary limit.";
+  $("jobs-list").replaceChildren(...items.map(jobRow));
+  $("job-detail").replaceChildren(el("p", { cls: "hint", text: "Select a job to read it here." }));
   $("prev").disabled = offset <= 0;
   $("next").disabled = offset + limit >= total;
 }
@@ -186,8 +222,11 @@ function renderCv(cv) {
     $("cv-current").replaceChildren(el("p", { cls: "hint", text: "No CV uploaded yet." }));
     return;
   }
-  const meta = `${cv.filename} · ${cv.format.toUpperCase()} · ${cv.chars} characters · updated ${new Date(cv.updated_at).toLocaleString()}`;
-  $("cv-current").replaceChildren(el("p", { cls: "meta", text: meta }), el("pre", { text: cv.preview }));
+  const parts = [cv.filename, cv.format.toUpperCase(), `${cv.chars} characters`, `updated ${new Date(cv.updated_at).toLocaleString()}`];
+  const nodes = [el("p", { cls: "meta" }, ...parts.map((x) => el("span", { text: x })))];
+  if (cv.demo) nodes.push(el("p", { cls: "notice", text: "Demo mode: file reading is switched off, so a built-in sample CV is stored whatever you upload." }));
+  nodes.push(el("pre", { text: cv.preview }));
+  $("cv-current").replaceChildren(...nodes);
 }
 
 async function loadCv() {

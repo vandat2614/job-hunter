@@ -74,3 +74,10 @@ def test_unreadable_files_rejected(data):
 def test_text_is_truncated():
     _, text = process_cv(("word " * 50_000).encode())
     assert len(text) <= MAX_TEXT_CHARS
+
+
+def test_mock_cv_is_clean_and_non_empty():
+    from app.mock_cv import MOCK_CV_TEXT
+
+    assert MOCK_CV_TEXT.strip()
+    assert redact_pii(MOCK_CV_TEXT) == MOCK_CV_TEXT

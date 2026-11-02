@@ -183,6 +183,7 @@ Replace `job-service` (twice) with another service name to test it. Scoring test
 - Scoring weights (70/30, 0.3/0.8/1.0) are hand-picked and not validated against labelled data. Keyword-based skill detection misses synonyms and skills outside the list.
 - The skill list is duplicated in job-service and scoring-service and can drift; the outbox code is duplicated across five services. Both would normally become a shared library.
 - LLM scoring is slow on CPU and processes one match at a time, so notifications can be delayed when many jobs match at once.
+- CV text extraction is frozen: cv-service runs with `CV_EXTRACTION=mock` and stores a built-in sample CV for any upload. Real PDF and DOCX extraction exists in `extract.py` but is unreliable and switched off.
 - Scanned (image-only) PDFs are rejected; there is no OCR.
 - The web demo keeps the JWT in sessionStorage and is served over plain HTTP; it is a demo UI, not a hardened client.
 - Only one data source (RemoteOK). A new source is a single new file in `services/crawler/app/sources/`.
